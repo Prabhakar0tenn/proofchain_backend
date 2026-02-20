@@ -13,70 +13,51 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* =============================
-   ENV VALIDATION
-============================= */
+// ----------------------------
+// ENV CHECK
+// ----------------------------
 if (!process.env.MNEMONIC || !process.env.MONGO_URI) {
-  console.error("❌ Missing environment variables");
+  console.log("❌ Missing environment variables");
   process.exit(1);
 }
 
 console.log("✅ ENV Loaded");
 
-/* =============================
-   MongoDB Connection
-============================= */
+// ----------------------------
+// MongoDB Connection
+// ----------------------------
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => {
-    console.error("❌ MongoDB Error:", err.message);
+    console.log("❌ MongoDB Error:", err.message);
     process.exit(1);
   });
 
-/* =============================
-   ALGOD CLIENT (Testnet)
-============================= */
+// ----------------------------
+// ALGOD CLIENT
+// ----------------------------
 const algodClient = new algosdk.Algodv2(
   "",
   "https://testnet-api.algonode.cloud",
   ""
 );
 
-/* =============================
-   CREATOR ACCOUNT
-============================= */
+// ----------------------------
+// CREATOR ACCOUNT
+// ----------------------------
 let creatorAccount;
 
 try {
   creatorAccount = algosdk.mnemonicToSecretKey(process.env.MNEMONIC);
   console.log("✅ Creator Address:", creatorAccount.addr.toString());
 } catch (err) {
-  console.error("❌ Failed to decode mnemonic");
+  console.log("❌ Failed to decode mnemonic");
   process.exit(1);
 }
 
-/* =============================
-   HELPER: Wait for Confirmation
-============================= */
-async function waitForConfirmation(client, txId) {
-  const status = await client.status().do();
-  let lastRound = status["last-round"];
-
-  while (true) {
-    const pendingInfo = await client.pendingTransactionInformation(txId).do();
-
-    if (pendingInfo["confirmed-round"] && pendingInfo["confirmed-round"] > 0) {
-      return pendingInfo;
-    }
-
-    lastRound++;
-    await client.statusAfterBlock(lastRound).do();
-  }
-}
-
-/* =============================
-   MINT CERTIFICATE
-============================= */
+// ----------------------------
+// MINT ROUTE
+// ----------------------------
 app.post("/mint", async (req, res) => {
   try {
     const { studentName, course } = req.body;
@@ -90,10 +71,8 @@ app.post("/mint", async (req, res) => {
 
     console.log("🔥 Mint request received");
 
-    // Generate Certificate Hash
     const certificateHash = generateHash(studentName, course);
 
-    // Blockchain params
     const params = await algodClient.getTransactionParams().do();
 
     const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
@@ -106,48 +85,45 @@ app.post("/mint", async (req, res) => {
       suggestedParams: params,
     });
 
-    // Sign transaction
     const signedTxn = txn.signTxn(creatorAccount.sk);
 
-    // Send transaction
-    const { txId } = await algodClient
+    const sendTx = await algodClient
       .sendRawTransaction(signedTxn)
       .do();
 
-    console.log("📡 Transaction sent:", txId);
+    const txId = sendTx.txId || sendTx.txid;
 
-    // Wait for confirmation
-    await waitForConfirmation(algodClient, txId);
+    if (!txId) {
+      throw new Error("Transaction broadcast failed");
+    }
 
-    console.log("✅ Transaction confirmed:", txId);
+    console.log("✅ TX SENT:", txId);
 
-    // Save in MongoDB
-    const newCertificate = await Certificate.create({
+    await Certificate.create({
       studentName,
       course,
       certificateHash,
       txId
     });
 
-    return res.json({
+    res.json({
       success: true,
       txId,
       certificateHash
     });
 
   } catch (err) {
-    console.error("❌ Mint Error:", err.message);
-
-    return res.status(500).json({
+    console.log("❌ ERROR:", err.message);
+    res.status(500).json({
       success: false,
       error: err.message
     });
   }
 });
 
-/* =============================
-   VERIFY CERTIFICATE
-============================= */
+// ----------------------------
+// VERIFY ROUTE
+// ----------------------------
 app.get("/verify/:hash", async (req, res) => {
   try {
     const cert = await Certificate.findOne({
@@ -161,31 +137,29 @@ app.get("/verify/:hash", async (req, res) => {
       });
     }
 
-    return res.json({
+    res.json({
       success: true,
       certificate: cert
     });
 
   } catch (err) {
-    console.error("❌ Verify Error:", err.message);
-
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: err.message
     });
   }
 });
 
-/* =============================
-   HEALTH CHECK ROUTE
-============================= */
+// ----------------------------
+// HEALTH CHECK
+// ----------------------------
 app.get("/", (req, res) => {
   res.send("🚀 ProofChain Backend Running");
 });
 
-/* =============================
-   SERVER START
-============================= */
+// ----------------------------
+// START SERVER
+// ----------------------------
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
