@@ -1,499 +1,193 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProofChain - Certificate Minter</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 500px;
-            width: 100%;
-            padding: 40px;
-        }
-
-        h1 {
-            color: #667eea;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-
-        .status-box {
-            background: #f0f0f0;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 12px;
-        }
-
-        .status-item {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-        }
-
-        .status-label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .status-value {
-            color: #667eea;
-        }
-
-        .status-value.error {
-            color: #e74c3c;
-        }
-
-        .status-value.success {
-            color: #27ae60;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .response-box {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 5px;
-            border-left: 4px solid #667eea;
-            display: none;
-        }
-
-        .response-box.show {
-            display: block;
-        }
-
-        .response-box.success {
-            border-left-color: #27ae60;
-            background: #f0fdf4;
-        }
-
-        .response-box.error {
-            border-left-color: #e74c3c;
-            background: #fef2f2;
-        }
-
-        .response-title {
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .response-content {
-            font-size: 13px;
-            color: #555;
-            word-break: break-all;
-            font-family: 'Courier New', monospace;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .button-text {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #eee;
-        }
-
-        .tab-btn {
-            background: none;
-            border: none;
-            padding: 12px 20px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            color: #999;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-
-        .tab-btn.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .certificate-details {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 10px;
-            font-size: 13px;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-
-        .detail-label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .detail-value {
-            color: #667eea;
-            word-break: break-all;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎓 ProofChain</h1>
-        <p class="subtitle">Create and verify blockchain certificates</p>
-
-        <div class="status-box">
-            <div class="status-item">
-                <span class="status-label">Server Status:</span>
-                <span class="status-value" id="serverStatus">Checking...</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">MongoDB:</span>
-                <span class="status-value" id="mongoStatus">Checking...</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">Creator Address:</span>
-                <span class="status-value" id="creatorStatus" style="font-size: 11px;">Checking...</span>
-            </div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('mint')">➕ Create Certificate</button>
-            <button class="tab-btn" onclick="switchTab('verify')">✓ Verify Certificate</button>
-        </div>
-
-        <!-- CREATE TAB -->
-        <div id="mint" class="tab-content active">
-            <form id="mintForm">
-                <div class="form-group">
-                    <label for="studentName">Student Name</label>
-                    <input type="text" id="studentName" placeholder="e.g., John Doe" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="course">Course Name</label>
-                    <input type="text" id="course" placeholder="e.g., Blockchain Fundamentals" required>
-                </div>
-
-                <button type="submit" id="mintBtn">Create Certificate</button>
-            </form>
-
-            <div class="response-box" id="responseBox">
-                <div class="response-title" id="responseTitle"></div>
-                <div class="response-content" id="responseContent"></div>
-            </div>
-        </div>
-
-        <!-- VERIFY TAB -->
-        <div id="verify" class="tab-content">
-            <form id="verifyForm">
-                <div class="form-group">
-                    <label for="certificateHash">Certificate Hash</label>
-                    <input type="text" id="certificateHash" placeholder="Paste the certificate hash here" required>
-                </div>
-
-                <button type="submit" id="verifyBtn">Verify Certificate</button>
-            </form>
-
-            <div class="response-box" id="verifyResponseBox">
-                <div class="response-title" id="verifyResponseTitle"></div>
-                <div class="response-content" id="verifyResponseContent"></div>
-                <div id="certificateDetailsBox"></div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const API_URL = "http://localhost:5000";
-
-        // Tab switching
-        function switchTab(tabName) {
-            // Hide all tabs
-            document.getElementById('mint').classList.remove('active');
-            document.getElementById('verify').classList.remove('active');
-
-            // Remove active class from all buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-
-            // Show selected tab
-            document.getElementById(tabName).classList.add('active');
-
-            // Highlight button
-            event.target.classList.add('active');
-        }
-
-        // Check server health on load
-        async function checkServerHealth() {
-            try {
-                const res = await fetch(`${API_URL}/health`);
-                const data = await res.json();
-
-                document.getElementById("serverStatus").textContent = "✅ Connected";
-                document.getElementById("serverStatus").classList.add("success");
-
-                document.getElementById("mongoStatus").textContent = data.mongoConnected ? "✅ Connected" : "❌ Disconnected";
-                document.getElementById("mongoStatus").classList.add(data.mongoConnected ? "success" : "error");
-
-                document.getElementById("creatorStatus").textContent = data.creator || "❌ Not initialized";
-                document.getElementById("creatorStatus").classList.add(data.creator ? "success" : "error");
-
-            } catch (err) {
-                document.getElementById("serverStatus").textContent = "❌ Disconnected";
-                document.getElementById("serverStatus").classList.add("error");
-                document.getElementById("mongoStatus").textContent = "❌ Error";
-                document.getElementById("mongoStatus").classList.add("error");
-                document.getElementById("creatorStatus").textContent = "❌ Error";
-                document.getElementById("creatorStatus").classList.add("error");
-                console.error("Health check failed:", err.message);
-            }
-        }
-
-        // Check health every 5 seconds
-        checkServerHealth();
-        setInterval(checkServerHealth, 5000);
-
-        // Handle CREATE form submission
-        document.getElementById("mintForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-
-            const studentName = document.getElementById("studentName").value;
-            const course = document.getElementById("course").value;
-            const mintBtn = document.getElementById("mintBtn");
-            const responseBox = document.getElementById("responseBox");
-
-            // Disable button and show spinner
-            mintBtn.disabled = true;
-            mintBtn.innerHTML = '<span class="button-text"><span class="spinner"></span>Creating...</span>';
-
-            try {
-                const res = await fetch(`${API_URL}/mint`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        studentName,
-                        course
-                    })
-                });
-
-                const data = await res.json();
-
-                responseBox.classList.add("show");
-
-                if (data.success) {
-                    responseBox.classList.remove("error");
-                    responseBox.classList.add("success");
-                    document.getElementById("responseTitle").textContent = "✅ Certificate Created!";
-                    document.getElementById("responseContent").innerHTML = `
-                        <strong>Transaction ID:</strong><br>
-                        ${data.txId}<br><br>
-                        <strong>Certificate Hash:</strong><br>
-                        ${data.certificateHash}<br><br>
-                        <strong>Student:</strong> ${studentName}<br>
-                        <strong>Course:</strong> ${course}
-                    `;
-                    document.getElementById("mintForm").reset();
-                } else {
-                    responseBox.classList.remove("success");
-                    responseBox.classList.add("error");
-                    document.getElementById("responseTitle").textContent = "❌ Error";
-                    document.getElementById("responseContent").textContent = data.error || "Unknown error occurred";
-                }
-
-            } catch (err) {
-                responseBox.classList.add("show");
-                responseBox.classList.remove("success");
-                responseBox.classList.add("error");
-                document.getElementById("responseTitle").textContent = "❌ Network Error";
-                document.getElementById("responseContent").textContent = err.message || "Failed to connect to server";
-            } finally {
-                mintBtn.disabled = false;
-                mintBtn.innerHTML = "Create Certificate";
-            }
-        });
-
-        // Handle VERIFY form submission
-        document.getElementById("verifyForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-
-            const certificateHash = document.getElementById("certificateHash").value;
-            const verifyBtn = document.getElementById("verifyBtn");
-            const verifyResponseBox = document.getElementById("verifyResponseBox");
-
-            // Disable button and show spinner
-            verifyBtn.disabled = true;
-            verifyBtn.innerHTML = '<span class="button-text"><span class="spinner"></span>Verifying...</span>';
-
-            try {
-                const res = await fetch(`${API_URL}/verify/${certificateHash}`);
-                const data = await res.json();
-
-                verifyResponseBox.classList.add("show");
-
-                if (data.success) {
-                    const cert = data.certificate;
-                    verifyResponseBox.classList.remove("error");
-                    verifyResponseBox.classList.add("success");
-                    document.getElementById("verifyResponseTitle").textContent = "✅ Certificate Verified!";
-                    document.getElementById("verifyResponseContent").textContent = "";
-                    
-                    document.getElementById("certificateDetailsBox").innerHTML = `
-                        <div class="certificate-details">
-                            <div class="detail-row">
-                                <span class="detail-label">Student Name:</span>
-                                <span class="detail-value">${cert.studentName}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Course:</span>
-                                <span class="detail-value">${cert.course}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Certificate Hash:</span>
-                                <span class="detail-value" style="font-size: 11px;">${cert.certificateHash}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Transaction ID:</span>
-                                <span class="detail-value" style="font-size: 11px;">${cert.txId}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Created At:</span>
-                                <span class="detail-value">${new Date(cert.createdAt).toLocaleString()}</span>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    verifyResponseBox.classList.remove("success");
-                    verifyResponseBox.classList.add("error");
-                    document.getElementById("verifyResponseTitle").textContent = "❌ Certificate Not Found";
-                    document.getElementById("verifyResponseContent").textContent = data.message || "No certificate found with this hash";
-                    document.getElementById("certificateDetailsBox").innerHTML = "";
-                }
-
-            } catch (err) {
-                verifyResponseBox.classList.add("show");
-                verifyResponseBox.classList.remove("success");
-                verifyResponseBox.classList.add("error");
-                document.getElementById("verifyResponseTitle").textContent = "❌ Error";
-                document.getElementById("verifyResponseContent").textContent = err.message || "Failed to verify certificate";
-                document.getElementById("certificateDetailsBox").innerHTML = "";
-            } finally {
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = "Verify Certificate";
-            }
-        });
-    </script>
-</body>
-</html>
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const algosdk = require("algosdk");
+const mongoose = require("mongoose");
+const generateHash = require("./utils/hash");
+const Certificate = require("./models/Certificate");
+
+console.log("🚀 Server starting...");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+/* =============================
+   ENV VALIDATION
+============================= */
+if (!process.env.MNEMONIC || !process.env.MONGO_URI) {
+  console.error("❌ Missing environment variables");
+  process.exit(1);
+}
+
+console.log("✅ ENV Loaded");
+
+/* =============================
+   MongoDB Connection
+============================= */
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => {
+    console.error("❌ MongoDB Error:", err.message);
+    process.exit(1);
+  });
+
+/* =============================
+   ALGOD CLIENT (Testnet)
+============================= */
+const algodClient = new algosdk.Algodv2(
+  "",
+  "https://testnet-api.algonode.cloud",
+  ""
+);
+
+/* =============================
+   CREATOR ACCOUNT
+============================= */
+let creatorAccount;
+
+try {
+  creatorAccount = algosdk.mnemonicToSecretKey(process.env.MNEMONIC);
+  console.log("✅ Creator Address:", creatorAccount.addr.toString());
+} catch (err) {
+  console.error("❌ Failed to decode mnemonic");
+  process.exit(1);
+}
+
+/* =============================
+   HELPER: Wait for Confirmation
+============================= */
+async function waitForConfirmation(client, txId) {
+  const status = await client.status().do();
+  let lastRound = status["last-round"];
+
+  while (true) {
+    const pendingInfo = await client.pendingTransactionInformation(txId).do();
+
+    if (pendingInfo["confirmed-round"] && pendingInfo["confirmed-round"] > 0) {
+      return pendingInfo;
+    }
+
+    lastRound++;
+    await client.statusAfterBlock(lastRound).do();
+  }
+}
+
+/* =============================
+   MINT CERTIFICATE
+============================= */
+app.post("/mint", async (req, res) => {
+  try {
+    const { studentName, course } = req.body;
+
+    if (!studentName || !course) {
+      return res.status(400).json({
+        success: false,
+        message: "Student name and course required"
+      });
+    }
+
+    console.log("🔥 Mint request received");
+
+    // Generate Certificate Hash
+    const certificateHash = generateHash(studentName, course);
+
+    // Blockchain params
+    const params = await algodClient.getTransactionParams().do();
+
+    const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+      sender: creatorAccount.addr,
+      total: 1,
+      decimals: 0,
+      assetName: "ProofChain Certificate",
+      unitName: "CERT",
+      assetURL: `https://proofchain.app/cert/${certificateHash}`,
+      suggestedParams: params,
+    });
+
+    // Sign transaction
+    const signedTxn = txn.signTxn(creatorAccount.sk);
+
+    // Send transaction
+    const { txId } = await algodClient
+      .sendRawTransaction(signedTxn)
+      .do();
+
+    console.log("📡 Transaction sent:", txId);
+
+    // Wait for confirmation
+    await waitForConfirmation(algodClient, txId);
+
+    console.log("✅ Transaction confirmed:", txId);
+
+    // Save in MongoDB
+    const newCertificate = await Certificate.create({
+      studentName,
+      course,
+      certificateHash,
+      txId
+    });
+
+    return res.json({
+      success: true,
+      txId,
+      certificateHash
+    });
+
+  } catch (err) {
+    console.error("❌ Mint Error:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+/* =============================
+   VERIFY CERTIFICATE
+============================= */
+app.get("/verify/:hash", async (req, res) => {
+  try {
+    const cert = await Certificate.findOne({
+      certificateHash: req.params.hash
+    });
+
+    if (!cert) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found"
+      });
+    }
+
+    return res.json({
+      success: true,
+      certificate: cert
+    });
+
+  } catch (err) {
+    console.error("❌ Verify Error:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+/* =============================
+   HEALTH CHECK ROUTE
+============================= */
+app.get("/", (req, res) => {
+  res.send("🚀 ProofChain Backend Running");
+});
+
+/* =============================
+   SERVER START
+============================= */
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Backend running on port ${PORT}`);
+});
