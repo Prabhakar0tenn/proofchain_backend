@@ -1,0 +1,166 @@
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const algosdk = require("algosdk");
+const mongoose = require("mongoose");
+const generateHash = require("./utils/hash");
+const Certificate = require("./models/Certificate");
+
+console.log("🚀 Server starting...");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ----------------------------
+// ENV CHECK
+// ----------------------------
+if (!process.env.MNEMONIC || !process.env.MONGO_URI) {
+  console.log("❌ Missing environment variables");
+  process.exit(1);
+}
+
+console.log("✅ ENV Loaded");
+
+// ----------------------------
+// MongoDB Connection
+// ----------------------------
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => {
+    console.log("❌ MongoDB Error:", err);
+    process.exit(1);
+  });
+
+// ----------------------------
+// ALGOD CLIENT
+// ----------------------------
+const algodClient = new algosdk.Algodv2(
+  "",
+  "https://testnet-api.algonode.cloud",
+  ""
+);
+
+// ----------------------------
+// CREATOR ACCOUNT
+// ----------------------------
+let creatorAccount;
+
+try {
+  creatorAccount = algosdk.mnemonicToSecretKey(process.env.MNEMONIC);
+  console.log("✅ Creator Address:");
+  console.log(creatorAccount.addr.toString());
+} catch (err) {
+  console.log("❌ Failed to decode mnemonic");
+  process.exit(1);
+}
+
+// ----------------------------
+// MINT + STORE ROUTE
+// ----------------------------
+app.post("/mint", async (req, res) => {
+  try {
+    const { studentName, course } = req.body;
+
+    if (!studentName || !course) {
+      return res.status(400).json({
+        success: false,
+        message: "Student name and course required"
+      });
+    }
+
+    console.log("🔥 Mint request received");
+
+    // Generate Hash
+    const certificateHash = generateHash(studentName, course);
+
+    // Get blockchain params
+    const params = await algodClient.getTransactionParams().do();
+
+    const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+      sender: creatorAccount.addr,
+      total: 1,
+      decimals: 0,
+      assetName: "ProofChain Certificate",
+      unitName: "CERT",
+      assetURL: `https://proofchain.app/cert/${certificateHash}`,
+      suggestedParams: params,
+    });
+
+    const signedTxn = txn.signTxn(creatorAccount.sk);
+
+const sendTx = await algodClient
+  .sendRawTransaction(signedTxn)
+  .do();
+
+console.log("Raw TX Response:", sendTx);
+
+const txId = sendTx.txId || sendTx.txid;
+
+if (!txId) {
+  throw new Error("Transaction broadcast failed");
+}
+
+console.log("✅ TX SENT:", txId);
+
+    // Save to MongoDB safely
+    const newCertificate = await Certificate.create({
+      studentName,
+      course,
+      certificateHash,
+      txId: txId
+    });
+
+   res.json({
+  success: true,
+  txId,
+  certificateHash
+});
+  } catch (err) {
+    console.log("❌ ERROR:", err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ----------------------------
+// VERIFY ROUTE
+// ----------------------------
+app.get("/verify/:hash", async (req, res) => {
+  try {
+    const cert = await Certificate.findOne({
+      certificateHash: req.params.hash
+    });
+
+    if (!cert) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      certificate: cert
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ----------------------------
+// PORT FIX FOR RENDER
+// ----------------------------
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Backend running on port ${PORT}`);
+});
